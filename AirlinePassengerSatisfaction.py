@@ -9,7 +9,6 @@ Created on Wed Nov 17 21:19:52 2021
 import pandas as pd
 import pickle
 
-
 infile = "Data_PassengerSatisfaction.csv"
 df = pd.read_csv(infile)
 
@@ -25,6 +24,16 @@ df = pd.read_csv(infile)
 df = df.drop(['Unnamed: 0','id'],axis=1)
 df.columns
 
+feature_names = ['Gender', 'Customer Type', 'Age', 'Type of Travel', 'Class',
+       'Flight Distance', 'Inflight wifi service',
+       'Departure/Arrival time convenient', 'Ease of Online booking',
+       'Gate location', 'Food and drink', 'Online boarding', 'Seat comfort',
+       'Inflight entertainment', 'On-board service', 'Leg room service',
+       'Baggage handling', 'Checkin service', 'Inflight service',
+       'Cleanliness', 'Departure Delay in Minutes', 'Arrival Delay in Minutes']
+target_names = ['satisfaction']
+
+
 # encode categorical features
 from sklearn.preprocessing import OrdinalEncoder
 oenc = OrdinalEncoder(categories=[['Female', 'Male'],
@@ -38,6 +47,7 @@ df[['Gender', 'Customer Type','Type of Travel', 'Class']] = oenc.transform(df[['
 oenc_filename= "oenc_target.pkl"
 with open(oenc_filename, 'wb') as outfile:
     pickle.dump(oenc,outfile)
+
 
 # encode categorical target
 from sklearn.preprocessing import LabelEncoder
@@ -55,6 +65,10 @@ with open(lenc_filename, 'wb') as outfile:
 
 ### Split data
 from sklearn.model_selection import train_test_split
+X = df[feature_names]
+y = df[target_names]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
 
 
 ### ML
