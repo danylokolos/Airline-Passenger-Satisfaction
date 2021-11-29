@@ -220,7 +220,7 @@ plt.savefig('Plot_ConfusionMatrixNorm.png')
 
 
 #%% Plot Precision-Recall Curve
-from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
+from sklearn.metrics import PrecisionRecallDisplay
 
 y_score = model.predict_proba(X_test)
 y_score = y_score[:,1]
