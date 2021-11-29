@@ -4,18 +4,15 @@ Created on Wed Nov 17 21:19:52 2021
 
 @author: Danylo
 """
+### Script to analyze customer satisfaction in Airlines
 
 
 
-
-### Read in Data
+#%% Read in Data
 import numpy as np
 import pandas as pd
 import pickle
 import os
-from collections import Counter
-
-
 
 infile = "Data_PassengerSatisfaction.csv"
 df = pd.read_csv(infile)
@@ -23,21 +20,27 @@ df = pd.read_csv(infile)
 
 
 
-### Exploratory Data Analysis
-from pandas_profiling import ProfileReport
+#%% Exploratory Data Analysis
+# if error, try to run in Jupyter Notebook
+#!pip install pandas-profiling
 
 outfile = "PandasProfilingReport-AirlinePassengerSatisfaction.html"
 if os.path.exists(outfile) == False:
+    from pandas_profiling import ProfileReport
     profile = ProfileReport(df)
     profile.to_file(outfile)
+    del profile
+    del outfile
 
 
 
 
-### Data Wrangling
+
+#%% Data Wrangling
 # get rid of missing values in "Arrival Delay in Minutes"
 df.shape
 df = df.dropna(axis=0, how="any")
+df.reset_index(inplace = True)
 df.shape
 
 
@@ -45,7 +48,7 @@ df.shape
 
 
 
-### Preprocessing
+#%% Preprocessing
 # drop columns with useless info
 df = df.drop(['Unnamed: 0','id'],axis=1)
 df.columns
@@ -80,7 +83,10 @@ from sklearn.preprocessing import LabelEncoder
 lenc = LabelEncoder()
 _y = df[['satisfaction']].values
 lenc.fit(_y.ravel())
-df[['satisfaction']] = lenc.transform(_y.ravel())
+#df[['satisfaction']] = lenc.transform(_y.ravel())
+_a = pd.DataFrame(lenc.transform(_y.ravel()))
+df[['satisfaction']] = _a
+
 target_possibilities = df.satisfaction.unique()
 
 # save label encoder
@@ -93,7 +99,7 @@ with open(lenc_filename, 'wb') as outfile:
 
 
 
-### Split data
+#%% Split data
 from sklearn.model_selection import train_test_split
 X = df[feature_names]
 y = df[target_names]
@@ -107,12 +113,10 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, r
 # Undersample Majority Class - Random - results in lower accuracy
 """
 from imblearn.under_sampling import RandomUnderSampler
-counter = Counter(y_train)
-print('Before',counter)
+print('Length of X_train before Rebalance:', str(len(X_train)))
 undersample = RandomUnderSampler(sampling_strategy='majority')
 X_train_under, y_train_under = undersample.fit_resample(X_train, y_train)
-counter = Counter(y_train_under)
-print('After',counter)
+print('Length of X_train after Rebalance:', str(len(X_train_under)))
 
 X_train = X_train_under
 y_train = y_train_under
@@ -120,7 +124,7 @@ y_train = y_train_under
 
 
 
-### Machine Learning Model
+#%% Machine Learning Model
 from sklearn.ensemble import RandomForestClassifier
 
 n_estimators = 100
@@ -137,90 +141,105 @@ with open(model_filename, 'wb') as outfile:
 
 
 
-### Run Model on Test Dataset
+#%% Run Model on Test Dataset
 y_test_pred = model.predict(X_test)
 
 
 
 
-### Analyze Results
+#%% Analyze Results
 # Feature Importance
 feature_importance = list(zip(X_train, model.feature_importances_))
-display('========== Feature Importance ==========')
-display(feature_importance)
-display('========== END ==========')
+print('========== Feature Importance ==========')
+print(*feature_importance, sep='\n')
+print('========== END ==========')
 
 # Accuracy Score
 from sklearn.metrics import accuracy_score
 accuracy = accuracy_score(y_test,y_test_pred)
-display('========== Accuracy Score ==========')
-display(accuracy)
-display('========== END ==========')
+print('========== Accuracy Score ==========')
+print(accuracy)
+print('========== END ==========')
 
 
 # Confusion Matrix
 from sklearn.metrics import confusion_matrix
 conf_matrix = confusion_matrix(y_test, y_test_pred)
 
-display('========== Confusion Matrix ==========')
-display(conf_matrix)
-display('========== END ==========')
+print('========== Confusion Matrix ==========')
+print(conf_matrix)
+print('========== END ==========')
 
 
 
 
-# Plot Confusion Matrix
+#%% Plot Confusion Matrix
 import matplotlib.pyplot as plt
+
 plt.figure(figsize = (10, 10))
 cmap = plt.cm.Blues
 plt.imshow(conf_matrix,cmap=cmap)
-plt.grid(None)
+plt.grid(False)
 plt.title('Customer Satisfaction Confusion Matrix', size = 24)
 plt.colorbar(aspect=5)
 output_labels = lenc.inverse_transform(target_possibilities)
 tick_marks = np.arange(len(output_labels))
-plt.xticks(tick_marks,output_labels,rotation=30)
-plt.yticks(tick_marks,output_labels)
+plt.xticks(tick_marks,output_labels,rotation=30,fontsize='xx-large')
+plt.yticks(tick_marks,output_labels,fontsize='xx-large')
 for ii in range(len(output_labels)):
     for jj in range(len(output_labels)):
         if conf_matrix[ii,jj] > np.max(conf_matrix)/2:
-            plt.text(ii,jj,conf_matrix[ii,jj],horizontalalignment="center",color="white")
+            plt.text(ii,jj,conf_matrix[ii,jj],horizontalalignment="center",color="white",fontsize='xx-large')
         else:
-            plt.text(ii,jj,conf_matrix[ii,jj],horizontalalignment="center")
-plt.savefig('RF_ConfusionMatrix.png')
-
-plt.show()
-
+            plt.text(ii,jj,conf_matrix[ii,jj],horizontalalignment="center",fontsize='xx-large')
+plt.tight_layout(pad=1)
+plt.savefig('Plot_ConfusionMatrix.png')
 
 
-# Plot Precision-Recall Curve
-from sklearn.metrics import PrecisionRecallDisplay
+#%% Plot Confusion Matrix Normalized
+conf_matrix_norm = conf_matrix / conf_matrix.max()
+plt.figure(figsize = (10, 10))
+cmap = plt.cm.Blues
+plt.imshow(conf_matrix_norm,cmap=cmap)
+plt.grid(False)
+plt.title('Customer Satisfaction Confusion Matrix Normalized', size = 24)
+plt.colorbar(aspect=5)
+output_labels = lenc.inverse_transform(target_possibilities)
+tick_marks = np.arange(len(output_labels))
+plt.xticks(tick_marks,output_labels,rotation=30,fontsize='xx-large')
+plt.yticks(tick_marks,output_labels,fontsize='xx-large')
+for ii in range(len(output_labels)):
+    for jj in range(len(output_labels)):
+        if conf_matrix_norm[ii,jj] > np.max(conf_matrix_norm)/2:
+            plt.text(ii,jj,"{:.3f}".format(conf_matrix_norm[ii,jj]),horizontalalignment="center",color="white",fontsize='xx-large')
+        else:
+            plt.text(ii,jj,"{:.3f}".format(conf_matrix_norm[ii,jj]),horizontalalignment="center",fontsize='xx-large')
+plt.tight_layout(pad=1)
+plt.savefig('Plot_ConfusionMatrixNorm.png')
 
-#y_score = clf.decision_function(X_test)
+
+
+#%% Plot Precision-Recall Curve
+from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
+
 y_score = model.predict_proba(X_test)
 y_score = y_score[:,1]
-
 plt.figure()
 disp = PrecisionRecallDisplay.from_predictions(y_test, y_score, name="Random Forest")
-plt.title('Precision Recall Curve')
-plt.xlim([0,1.02])
-plt.ylim([0,1.02])
-plt.legend(loc = 'lower left')
-plt.savefig('RF_PrecisionRecallCurve.png')
-plt.show()
+_ = disp.ax_.set_title('Precision Recall Curve')
+plt.savefig('Plot_PrecisionRecallCurve.png')
 
 
-# plot ROC Curve for single class
+
+
+#%% Plot ROC Curve
 import sklearn.metrics as metrics
-# calculate the fpr and tpr for all thresholds of the classification
 
 probs = model.predict_proba(X_test)
 preds = probs[:,1]
 fpr, tpr, threshold = metrics.roc_curve(y_test, preds)
 roc_auc = metrics.auc(fpr, tpr)
 
-# method I: plt
-import matplotlib.pyplot as plt
 plt.figure()
 plt.title('Receiver Operating Characteristic')
 plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
@@ -230,5 +249,4 @@ plt.xlim([-0.02, 1])
 plt.ylim([0, 1.02])
 plt.ylabel('True Positive Rate')
 plt.xlabel('False Positive Rate')
-plt.savefig('RF_ROCCurve.png')
-plt.show()
+plt.savefig('Plot_ROCCurve.png')
